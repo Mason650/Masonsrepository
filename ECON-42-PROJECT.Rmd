@@ -1,0 +1,156 @@
+---
+title: "Jackson, Xian, Mason"
+author: "Mason Rossi"
+date: "2023-06-18"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### LIBRARIES, SET WORKING DIRECTORY AND HETEROSKEDACITY ADJUSTMENT ###
+```{r Libraries Working Directory Heteroskedacity Adjustment, warning=FALSE, message=FALSE, comment=""}
+rm(list=ls())
+library(AER)
+library(car) 
+library(doBy) 
+library(dplyr) 
+library(foreign)
+library(ggplot2)
+library(knitr)
+library(sandwich)
+library(stargazer)
+library(XML)
+library(epiDisplay)
+library(lmtest) 
+setwd("/Users/masonrossi/Desktop/Econ 42/Project/dataset")
+Death<-read.csv("covid_death.csv")
+Vaccine<-read.csv("covid_vac.csv")
+Health<-read.csv("county_health.csv")
+cse=function(reg) {
+    rob=sqrt(diag(vcovHC(reg, type="HC1")))
+    return(rob)
+    }
+```
+
+### QUESTION ###
+As rates of vaccination increase, do rates of Covid death decrease?
+
+### HYPOTHESIS ###
+There are many factors that contribute to covid death, holding those other factors constant, do we see a negative correlation between death and vaccination?
+
+### MERGED DATA SETS ###
+```{r Merged Data Sets, warning=FALSE, message=FALSE, comment=""}
+HealthData<-merge(Health, Death, by = "fips")
+Data<-merge(HealthData, Vaccine, by = "fips")
+```
+
+### DATA ###
+Wealthy counties are defined as counties with a median annual household income above $60,000 USD
+```{r Data, warning=FALSE, message=FALSE}
+wealthy<-ifelse(Data$median_hh_income > 60000, 1, 0)
+old<-ifelse(Data$p_agege_65 > 0.25, 1, 0)
+largepop<-ifelse(Data$population_2011 > 400000, 1, 0)
+feminine<-ifelse(Data$p_female > .51, 1, 0)
+reg1<-lm(Data$covid.19.deaths~Data$series_complete_pop_pct)
+reg4<-lm(Data$covid.19.deaths~Data$series_complete_pop_pct+wealthy+old+largepop)
+reg5<-lm(Data$covid.19.deaths~Data$series_complete_pop_pct+wealthy+old+largepop+largepop:old)
+reg6<-lm(Data$covid.19.deaths~Data$series_complete_pop_pct+wealthy+old+largepop+feminine)
+reg7<-lm(Data$covid.19.deaths~Data$series_complete_pop_pct+wealthy+old+largepop+feminine+feminine:old)
+reg8<-lm(Data$covid.19.deaths~Data$series_complete_65pluspop_pct+old+old:Data$series_complete_65pluspop_pct)
+reg9<-lm(Data$covid.19.deaths~Data$series_complete_65pluspop_pct)
+reg10<-lm(Data$covid.19.deaths~Data$series_complete_pop_pct+feminine+feminine:Data$series_complete_pop_pct)
+```
+
+### DEFINING CATEGORIES ###
+```{r Defining Categories, warning=FALSE, message=FALSE}
+sum(Data$median_hh_income > 60000, na.rm = TRUE)
+length(Data$median_hh_income)
+topwealthycountiespercent<-(270/3135)*100
+print(topwealthycountiespercent)
+sum(Data$population_2011 > 400000, na.rm = TRUE)
+length(Data$population_2011)
+toppopulationcountiespercent<-(169/3135)*100
+print(toppopulationcountiespercent)
+sum(Data$p_agege_65 > 0.25, na.rm = TRUE)
+length(Data$p_agege_65)
+topolderpersoncountiespercent<-(124/3135)*100
+print(topolderpersoncountiespercent)
+Percentagevalues<-data.frame(topwealthycountiespercent, toppopulationcountiespercent, topolderpersoncountiespercent)
+sum(Data$p_female > .51, na.rom = TRUE)
+length(Data$p_female)
+topfemalecountiespercent<-(818/3135)*100
+print(topfemalecountiespercent)
+Percentagevalues<-data.frame(topwealthycountiespercent, toppopulationcountiespercent, topolderpersoncountiespercent, topfemalecountiespercent)
+rm(topwealthycountiespercent)
+rm(toppopulationcountiespercent)
+rm(topolderpersoncountiespercent)
+rm(topfemalecountiespercent)
+```
+Defining counties as wealthy counties: In order to define wealthier counties from our data set, we chose to observe counties with an average amount of income above $60,000 a year or, the top 8.61% of average income counties. 
+
+Defining counties as high population counties: In order to define higher populations counties from our data set, we chose to observe counties with a population above 400,000 people or, the top 5.39% of most highly populated counties. 
+
+Defining counties as having a high amount of old people: In order to define counties as being older counties based on the amount of the counties' older occupants, we looked at counties with a population of older people (people aged 65 or older) that made up more than 25% of the counties' total population or, the top 3.95% of counties with the highest amount of older people (people aged 65 or older).
+
+Defining counties as having a high amount of females: In order to define counties as being more feminine counties based on the amount of the counties' female occupants, we looked at the counties with a population of females that made up more than 51% of the counties' total population or, the top 26.09% of counties with the highest amount of females. 
+
+Note: we sought to include regressors that had more than 30 observations in order to meet the requirements for a standard normal distribution when added to our regression. 
+
+### DESCRIPTIVE STATS ###
+```{r Descriptive, warning=FALSE, message=FALSE} 
+stargazer(Death, type = "text")
+stargazer(Vaccine, type = "text")
+ggplot(data = Data, aes(x = Data$p_female, y = Data$covid.19.deaths)) + geom_point() + geom_smooth()
+ggplot(data = Data, aes(x = Data$series_complete_pop_pct, y = Data$covid.19.deaths)) + geom_point() + geom_smooth()
+```
+### REGRESSION ANALYSIS ###
+```{r Regression, warning=FALSE, message=FALSE}
+stargazer(reg1, type = "text")
+stargazer(reg1, reg6, reg7, type = "text")
+stargazer(reg1, reg8, type = "text")
+stargazer(reg1, reg10, type = "text")
+```
+
+ 
+
+
+### DESCRIPTIVE STATS ###
+```{r Descriptive Stats, warning=FALSE, message=FALSE} 
+stargazer(Death, type = "text")
+stargazer(Vaccine, type = "text")
+ggplot(data = Data, aes(x = Data$p_female, y = Data$covid.19.deaths)) + geom_point() + geom_smooth()
+ggplot(data = Data, aes(x = Data$series_complete_pop_pct, y = Data$covid.19.deaths)) + geom_point() + geom_smooth()
+```
+### REGRESSION ANALYSIS ###
+```{r Regression Analysis, warning=FALSE, message=FALSE}
+stargazer(reg1, type = "text")
+stargazer(reg1, reg6, reg7, type = "text")
+stargazer(reg1, reg8, type = "text")
+stargazer(reg1, reg10, type = "text")
+```
+
+### DISCUSSION OF RESULTS ###
+There are a myriad of factors that can affect the results of our analysis. The factors that we accounted for are large population groups, gender, and age. These are general variables and as each one was added, our factor series_complete_pop_pct changed drastically. 
+
+We see that population covid vaccination rate significantly affects the covid death rate, and as we control for more factors, it retains its strong significance. The T-stat falls from about 12 to 7, but this does not make it any less significant as both values are well past the 99% confidence value of 2.576. 
+
+From our observations, being wealthy significantly affected the rate that you die from covid in a negative way, its t-stat was well above 1.96 in all regressions. (The higher the amount of average wealth, the lower we can expect the death rate to be). This makes sense as upper class citizens have access to better healthcare than lower class citizens. 
+
+Shockingly, we see that when controlling for multiple variables, old age does not significantly affect death from covid. The T-stat is far less than 1.96 and fails to reach even the 90% confidence value of 1.645.
+
+Another factor that we observed is the gender comparison. The proportion of women in a county significantly affects the rate at which people die from covid. This is also seen in one of our plots, comparing the proportion of women in a county to the total number of covid deaths documented.
+
+The change in our coefficient values for series_complete_pop_pct indicate that there was a great deal of upward bias. We conclude this based on the change in our coefficient value from our regression without any regressors of 45.717 to our regression with our highest adjusted R2 with all of our regressors with a value of 14.336 for our coefficient.
+
+Although there are many factors that can affect the stability of our regression, we believe that our analysis has solid external and internal validity as even though we added significant variables, our numbers stayed consistent. Our R2 value was not the strongest (starting at just .092 and ending at .392 for our adjusted R2 where 39.2% of the variability of our observations could be explained through our regression analysis with the addition of all of our regressors), but it was still a solid result given the limited number of variables we tested for and was a good fit. 
+
+The factors that we chose do a decent job of explaining the variability of covid death. Considering we only chose a handful of variables from an expansive list, we believe that these are good explanatory variables. The largest contributor by a wide margin are cities with large populations. When controlling for large cities, our adjusted R2 increased by 0.25 or 0.3 in various models. This consistency shows that population size has an outstanding effect on covid death. This explanation is further backed up by its significant t and f stats. Using large cities as a regressor likely has a large effect on the explanatory power of our regression analysis because there are many useful explanatory values that are included within big cities (sanitation, infrastructure access, and higher GDP per capita) that have effects on our independent variable. 
+
+To answer our original question, covid vaccines do have a statistically significant effect on the rate of covid deaths. As our ggplot graph comparing non-covid death and vaccine rates shows, the more vaccines deployed in a population, the lower the covid death count. There are many factors that affect the death rate, but vaccines are a significant contributor to the over all decrease in death rates. While we can conclude with significance the effects of vaccines on decreasing deaths, there is still evidence of omitted variable bias as evidenced through even our highest adjusted R2 only explaining 39.2% of the variability of our observations. If we wish to further inquire about vaccine effectiveness with regards to decreasing covid related deaths, we should seek to include other regressors with large amounts of explanatory power. 
+
+
+
